@@ -164,13 +164,13 @@ func (a *appGenerator) Generate() error {
 	// templates are now lazy loaded so there is concurrent map access I can't guard
 	if a.GenOpts.IncludeModel {
 		log.Printf("rendering %d models", len(app.Models))
-		for _, md := range app.Models {
-			mod := md
+		if err = ParallelExecute(len(app.Models), 5, func(index int) error {
+			mod := app.Models[index]
 			mod.IncludeModel = true
 			mod.IncludeValidator = a.GenOpts.IncludeValidator
-			if err := a.GenOpts.renderDefinition(&mod); err != nil {
-				return err
-			}
+			return a.GenOpts.renderDefinition(&mod)
+		}); err != nil {
+			return err
 		}
 	}
 
@@ -282,12 +282,15 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 	log.Printf("planning definitions (found: %d)", len(a.Models))
 
 	genModels := make(GenDefinitions, 0, len(a.Models))
+	specDoc := a.SpecDoc
+	analyzedSpec := analysis.New(specDoc.Spec())
 	for mn, m := range a.Models {
-		model, err := makeGenDefinition(
+		model, err := makeGenDefinitionWithAnalyzedSpec(
 			mn,
 			a.ModelsPackage,
 			m,
-			a.SpecDoc,
+			specDoc,
+			analyzedSpec,
 			a.GenOpts,
 		)
 		if err != nil {

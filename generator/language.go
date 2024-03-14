@@ -210,6 +210,7 @@ func GoLangOpts() *LanguageOpts {
 		opts.TabWidth = 2
 		opts.Fragment = true
 		opts.Comments = true
+		opts.FormatOnly = true
 		return imports.Process(ffn, content, opts)
 	}
 

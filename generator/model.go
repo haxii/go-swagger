@@ -163,6 +163,25 @@ func makeGenDefinition(name, pkg string, schema spec.Schema, specDoc *loads.Docu
 	return gd, err
 }
 
+func makeGenDefinitionWithAnalyzedSpec(name, pkg string, schema spec.Schema,
+	specDoc *loads.Document, analyzed *analysis.Spec, opts *GenOpts) (*GenDefinition, error) {
+	gd, err := makeGenDefinitionHierarchyWithAnalyzedSpec(name, pkg, "", schema, specDoc, analyzed, opts)
+
+	if err == nil && gd != nil {
+		// before yielding the schema to the renderer, we check if the top-level Validate method gets some content
+		// this means that the immediate content of the top level definitions has at least one validation.
+		//
+		// If none is found at this level and that no special case where no Validate() method is exposed at all
+		// (e.g. io.ReadCloser and interface{} types and their aliases), then there is an empty Validate() method which
+		// just return nil (the object abides by the runtime.Validatable interface, but knows it has nothing to validate).
+		//
+		// We do this at the top level because of the possibility of aliased types which always bubble up validation to types which
+		// are referring to them. This results in correct but inelegant code with empty validations.
+		gd.GenSchema.HasValidations = shallowValidationLookup(gd.GenSchema)
+	}
+	return gd, err
+}
+
 func shallowValidationLookup(sch GenSchema) bool {
 	// scan top level need for validations
 	//
@@ -226,13 +245,18 @@ func isExternal(schema spec.Schema) bool {
 }
 
 func makeGenDefinitionHierarchy(name, pkg, container string, schema spec.Schema, specDoc *loads.Document, opts *GenOpts) (*GenDefinition, error) {
+	return makeGenDefinitionHierarchyWithAnalyzedSpec(name, pkg, container, schema, specDoc, analysis.New(specDoc.Spec()), opts)
+}
+
+func makeGenDefinitionHierarchyWithAnalyzedSpec(name, pkg, container string, schema spec.Schema,
+	specDoc *loads.Document, analyzed *analysis.Spec, opts *GenOpts) (*GenDefinition, error) {
+	// Check if model is imported from external package using x-go-type
 	// Check if model is imported from external package using x-go-type
 	receiver := "m"
 	// models are resolved in the current package
 	modelPkg := opts.LanguageOpts.ManglePackageName(path.Base(filepath.ToSlash(pkg)), "definitions")
 	resolver := newTypeResolver("", "", specDoc).withDefinitionPackage(modelPkg)
 	resolver.ModelName = name
-	analyzed := analysis.New(specDoc.Spec())
 
 	di := discriminatorInfo(analyzed)
 
