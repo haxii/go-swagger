@@ -179,11 +179,11 @@ func (a *appGenerator) Generate() error {
 		for _, g := range app.OperationGroups {
 			opg := g
 			log.Printf("rendering %d operations for %s", opg.Operations.Len(), opg.Name)
-			for _, p := range opg.Operations {
-				op := p
-				if err := a.GenOpts.renderOperation(&op); err != nil {
-					return err
-				}
+			if err = ParallelExecute(len(app.Operations), 5, func(index int) error {
+				op := app.Operations[index]
+				return a.GenOpts.renderOperation(&op)
+			}); err != nil {
+				return err
 			}
 			// optional OperationGroups templates generation
 			if err := a.GenOpts.renderOperationGroup(&opg); err != nil {
