@@ -691,6 +691,9 @@ type GenApp struct {
 	// generation option. Alternative methods to serve spec (e.g. from disk, ...) may be implemented by
 	// adding a middleware to the generated API.
 	FlatSwaggerJSON string
+
+	// bytes_var(gz(jsonEnc(simplify(FlatSwaggerJSON))))
+	SimplifySwagger string
 	ExcludeSpec     bool
 	GenOpts         *GenOpts
 }

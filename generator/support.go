@@ -24,6 +24,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/go-openapi/analysis"
 	"github.com/go-openapi/loads"
@@ -498,6 +499,11 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 	jsonb, _ := json.MarshalIndent(a.SpecDoc.OrigSpec(), "", "  ")
 	flatjsonb, _ := json.MarshalIndent(a.SpecDoc.Spec(), "", "  ")
 
+	simplifySwaggerVar, err := encodeSwaggerToByteVar(a.SpecDoc.Spec())
+	if err != nil {
+		return GenApp{}, err
+	}
+
 	return GenApp{
 		GenCommon: GenCommon{
 			Copyright:        a.GenOpts.Copyright,
@@ -530,11 +536,64 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		Principal:                  a.GenOpts.PrincipalAlias(),
 		SwaggerJSON:                generateReadableSpec(jsonb),
 		FlatSwaggerJSON:            generateReadableSpec(flatjsonb),
+		SimplifySwagger:            simplifySwaggerVar,
 		ExcludeSpec:                a.GenOpts.ExcludeSpec,
 		GenOpts:                    a.GenOpts,
 
 		PrincipalIsNullable: a.GenOpts.PrincipalIsNullable(),
 	}, nil
+}
+
+func simplifySwaggerSpec(s *spec.Swagger) *spec.Swagger {
+	data, _ := json.Marshal(s)
+	ss := spec.Swagger{}
+	_ = json.Unmarshal(data, &ss)
+	p := make(map[string]spec.PathItem)
+	for swagPath, info := range ss.Paths.Paths {
+		if strings.HasPrefix(swagPath, "/-/") {
+			continue
+		}
+		for _, op := range []*spec.Operation{info.Get, info.Put,
+			info.Post, info.Delete, info.Options, info.Head, info.Patch} {
+			if op == nil {
+				continue
+			}
+			op.Description = ""
+			op.Summary = ""
+			op.Responses = &spec.Responses{
+				ResponsesProps: spec.ResponsesProps{
+					StatusCodeResponses: map[int]spec.Response{200: {
+						ResponseProps: spec.ResponseProps{Description: "OK"},
+					}},
+				},
+			}
+			parameters := make([]spec.Parameter, 0)
+			for _, parameter := range op.Parameters {
+				if parameter.Schema != nil {
+					parameter.Schema = &spec.Schema{}
+				}
+				parameter.Description = ""
+				parameter.Enum = nil
+				parameter.Example = nil
+				parameters = append(parameters, parameter)
+			}
+			op.Parameters = parameters
+		}
+		p[swagPath] = info
+
+	}
+	return &spec.Swagger{
+		SwaggerProps: spec.SwaggerProps{
+			Swagger:             "2.0",
+			Info:                ss.Info,
+			Consumes:            ss.Consumes,
+			Produces:            ss.Produces,
+			Schemes:             ss.Schemes,
+			Paths:               &spec.Paths{Paths: p},
+			SecurityDefinitions: ss.SecurityDefinitions,
+			Security:            ss.Security,
+		},
+	}
 }
 
 // generateReadableSpec makes swagger json spec as a string instead of bytes
