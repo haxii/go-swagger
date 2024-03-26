@@ -692,10 +692,11 @@ type GenApp struct {
 	// adding a middleware to the generated API.
 	FlatSwaggerJSON string
 
-	// bytes_var(gz(jsonEnc(simplify(FlatSwaggerJSON))))
-	SimplifySwagger string
-	ExcludeSpec     bool
-	GenOpts         *GenOpts
+	// contains only path
+	SimpleSwaggerJSON string
+
+	ExcludeSpec bool
+	GenOpts     *GenOpts
 }
 
 // UseGoStructFlags returns true when no strategy is specified or it is set to "go-flags"

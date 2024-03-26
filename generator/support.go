@@ -20,16 +20,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
-	"path"
-	"path/filepath"
-	"sort"
-	"strings"
-
 	"github.com/go-openapi/analysis"
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
 	"github.com/go-openapi/swag"
+	"log"
+	"path"
+	"path/filepath"
+	"sort"
 )
 
 // GenerateServer generates a server application
@@ -496,13 +494,10 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		basePath = sw.BasePath
 	}
 
-	jsonb, _ := json.MarshalIndent(a.SpecDoc.OrigSpec(), "", "  ")
-	flatjsonb, _ := json.MarshalIndent(a.SpecDoc.Spec(), "", "  ")
+	//jsonb, _ := json.MarshalIndent(a.SpecDoc.OrigSpec(), "", "  ")
+	//flatjsonb, _ := json.MarshalIndent(a.SpecDoc.Spec(), "", "  ")
 
-	simplifySwaggerVar, err := encodeSwaggerToByteVar(a.SpecDoc.Spec())
-	if err != nil {
-		return GenApp{}, err
-	}
+	simplifySwagger, _ := json.MarshalIndent(simplifySwaggerSpec(a.SpecDoc.Spec()), "", "  ")
 
 	return GenApp{
 		GenCommon: GenCommon{
@@ -534,11 +529,11 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		Operations:                 genOps,
 		OperationGroups:            opGroups,
 		Principal:                  a.GenOpts.PrincipalAlias(),
-		SwaggerJSON:                generateReadableSpec(jsonb),
-		FlatSwaggerJSON:            generateReadableSpec(flatjsonb),
-		SimplifySwagger:            simplifySwaggerVar,
-		ExcludeSpec:                a.GenOpts.ExcludeSpec,
-		GenOpts:                    a.GenOpts,
+		//SwaggerJSON:                generateReadableSpec(jsonb),
+		//FlatSwaggerJSON:            generateReadableSpec(flatjsonb),
+		SimpleSwaggerJSON: generateReadableSpec(simplifySwagger),
+		ExcludeSpec:       a.GenOpts.ExcludeSpec,
+		GenOpts:           a.GenOpts,
 
 		PrincipalIsNullable: a.GenOpts.PrincipalIsNullable(),
 	}, nil
@@ -550,9 +545,6 @@ func simplifySwaggerSpec(s *spec.Swagger) *spec.Swagger {
 	_ = json.Unmarshal(data, &ss)
 	p := make(map[string]spec.PathItem)
 	for swagPath, info := range ss.Paths.Paths {
-		if strings.HasPrefix(swagPath, "/-/") {
-			continue
-		}
 		for _, op := range []*spec.Operation{info.Get, info.Put,
 			info.Post, info.Delete, info.Options, info.Head, info.Patch} {
 			if op == nil {

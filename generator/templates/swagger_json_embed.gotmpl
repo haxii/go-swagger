@@ -10,11 +10,7 @@ package {{ .APIPackage }}
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-  "bytes"
   "encoding/json"
-  "compress/gzip"
-  "log"
-  "io"
 
   {{ imports .DefaultImports }}
   {{ imports .Imports }}
@@ -29,21 +25,7 @@ var (
 )
 
 func init() {
-   var err error
-   if SwaggerJSON, err = gzDecode(swaggerJSONgz); err != nil {
-     log.Fatalln(err)
-   }
-   FlatSwaggerJSON = SwaggerJSON
+	SwaggerJSON, FlatSwaggerJSON = simpleSwaggerJSON, simpleSwaggerJSON
 }
 
-func gzDecode(data []byte) ([]byte, error) {
-	dataReader := bytes.NewReader(data)
-	gzReader, err := gzip.NewReader(dataReader)
-	if err != nil {
-		return nil, err
-	}
-	defer gzReader.Close()
-	return io.ReadAll(gzReader)
-}
-
-var swaggerJSONgz = []byte{ {{ .SimplifySwagger }} }
+var simpleSwaggerJSON = json.RawMessage([]byte(`{{ .SimpleSwaggerJSON }}`))
