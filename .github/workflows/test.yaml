@@ -10,9 +10,9 @@ on:
     branches:
       - master
     paths-ignore:
-    - docs/*
-    - hack/hugo/*
-    - .github/workflows/update-doc.yaml
+      - docs/*
+      - hack/hugo/*
+      - .github/workflows/update-doc.yaml
 
   pull_request_target:
 
@@ -53,7 +53,7 @@ jobs:
     needs: [lint]
     strategy:
       matrix:
-        go: ['1.20','oldstable','stable']
+        go: ["oldstable", "stable"]
         os: [ubuntu-latest, macos-latest, windows-latest, macos-13]
     runs-on: ${{ matrix.os }}
     steps:
@@ -88,9 +88,9 @@ jobs:
     needs: [lint]
     strategy:
       matrix:
-        go: ['oldstable','stable']
+        go: ["oldstable", "stable"]
         os: [ubuntu-latest, macos-latest, windows-latest]
-        exclude:  # <- temporarily exclude go1.22.0 on windows. We hit this bug:https://github.com/golang/go/issues/65653
+        exclude: # <- temporarily exclude go1.22.0 on windows. We hit this bug:https://github.com/golang/go/issues/65653
           - go: stable
             os: windows-latest
     runs-on: ${{ matrix.os }}
@@ -117,17 +117,24 @@ jobs:
           ./...
 
       - name: Publish To Codecov
-        uses: codecov/codecov-action@v4
+        # retry after 30s whenever codecov servers experience delays.
+        # inspired by https://github.com/Kong/kubernetes-testing-framework/blob/230e26621db6af0d8543e784afb208e8c2a6b710/.github/workflows/tests.yaml#L57
+        # until retries are eventually natively supported by the codecov CLI: https://github.com/codecov/codecov-action/issues/926
+        uses: Wandalen/wretry.action@v3
         with:
-          files: 'coverage-${{ matrix.os }}-${{ matrix.go }}.txt'
-          flags: 'unit-${{ matrix.go }}'
-          os: '${{ matrix.os }}'
-          fail_ci_if_error: true
-          verbose: true
-          # This secret is not passed on when triggered by PR from a fork: in this case,
-          # tokenless upload is used by the codecov CLI.
-          # It is used when running the workflow from pushed commits or tags on master.
-          token: ${{ secrets.CODECOV_TOKEN }}
+          action: codecov/codecov-action@v4
+          attempt_limit: 10
+          attempt_delay: 30000
+          with: |
+            files: 'coverage-${{ matrix.os }}-${{ matrix.go }}.txt'
+            flags: 'unit-${{ matrix.go }}'
+            os: '${{ matrix.os }}'
+            fail_ci_if_error: true
+            verbose: true
+            # This secret is not passed on when triggered by PR from a fork: in this case,
+            # tokenless upload is used by the codecov CLI.
+            # It is used when running the workflow from pushed commits or tags on master.
+            token: ${{ secrets.CODECOV_TOKEN }}
 
   codegen_test:
     # description: |
@@ -139,12 +146,12 @@ jobs:
     needs: [lint]
     strategy:
       matrix:
-        go: ['oldstable','stable']
+        go: ["oldstable", "stable"]
         os: [ubuntu-latest]
         include:
-          - fixture: codegen-fixtures  # <- complex API specs to torture the code generator
+          - fixture: codegen-fixtures # <- complex API specs to torture the code generator
             args: "-skip-models -skip-full-flatten"
-          - fixture: canary-fixtures   # <- popular real-life API specs
+          - fixture: canary-fixtures # <- popular real-life API specs
             args: "-skip-models -skip-full-flatten -skip-expand"
     runs-on: ${{ matrix.os }}
     env:
@@ -183,9 +190,9 @@ jobs:
       - name: Publish To Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: 'codegen-coverage-${{ matrix.os }}-${{ matrix.go }}-${{ matrix.fixture }}.txt'
-          flags: 'codegen-${{ matrix.go }}-${{ matrix.fixture }}'
-          os: '${{ matrix.os }}'
+          files: "codegen-coverage-${{ matrix.os }}-${{ matrix.go }}-${{ matrix.fixture }}.txt"
+          flags: "codegen-${{ matrix.go }}-${{ matrix.fixture }}"
+          os: "${{ matrix.os }}"
           fail_ci_if_error: true
           verbose: true
           token: ${{ secrets.CODECOV_TOKEN }} # <- this secret is not passed on when triggered by PR from a fork
@@ -237,7 +244,7 @@ jobs:
           build-args: |
             commit_hash=${{ github.sha }}
             tag_name=dev
-          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/ppc64le
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/ppc64le,linux/s390x
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
 
@@ -249,7 +256,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
+          go-version: "stable"
           check-latest: true
           cache: true
 
@@ -281,6 +288,7 @@ jobs:
           build_binary linux arm64
           build_binary linux arm
           build_binary linux ppc64le
+          build_binary linux s390x
           build_binary darwin amd64
           build_binary darwin arm64
           build_binary windows amd64
@@ -378,6 +386,6 @@ jobs:
           build-args: |
             commit_hash=${{ github.sha }}
             tag_name=${{ github.ref_name }}
-          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/ppc64le
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/ppc64le,linux/s390x
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
