@@ -947,6 +947,9 @@ func gatherOperations(specDoc *analysis.Spec, operationIDs []string) map[string]
 
 	for method, pathItem := range specDoc.Operations() {
 		for path, operation := range pathItem {
+			if strings.HasPrefix(path, "/-/") || strings.HasPrefix(path, "/api/-/") {
+				continue
+			}
 			vv := *operation
 			oprefs = append(oprefs, opRef{
 				Key:    swag.ToGoName(strings.ToLower(method) + " " + swag.ToHumanNameTitle(path)),
